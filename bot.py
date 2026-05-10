@@ -1,164 +1,109 @@
-import logging
-from datetime import time
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler, ContextTypes
-)
 
-TOKEN = "8267904285:AAGVOoTasLqP8dGr82euRFSxyw34wuGnSCs"
-CHAT_ID = 90437191
 
-GAMEIA_1 = {
-    "data": {
-        "2025-08": {"name": "العطار ربيع المتحدة", "note": ""},
-        "2025-09": {"name": "المقدس سعد / أم القري", "note": "نص سهم"},
-        "2025-10": {"name": "أحمد عبد الفتاح", "note": ""},
-        "2025-11": {"name": "العطار ربيع المتحدة", "note": ""},
-        "2025-12": {"name": "العطار ربيع المتحدة", "note": ""},
-        "2026-01": {"name": "العطار ربيع المتحدة", "note": ""},
-        "2026-02": {"name": "عيد سعد", "note": ""},
-        "2026-03": {"name": "المقدس سعد / أم القري", "note": ""},
-        "2026-04": {"name": "العطار ربيع المتحدة", "note": "تم التأكيد"},
-        "2026-05": {"name": "د. ربيع", "note": ""},
-        "2026-06": {"name": "ياسر حجاج", "note": ""},
-        "2026-07": {"name": "سيد العديسات", "note": ""},
-        "2026-08": {"name": "محمد حسب الله", "note": ""},
-        "2026-09": {"name": "عيد سعد / محمد حسباللة", "note": "نص سهم لكل"},
-        "2026-10": {"name": "؟", "note": "غير محدد"},
-        "2026-11": {"name": "ربيع / الزاوية الحمراء", "note": ""},
-        "2026-12": {"name": "ربيع", "note": ""},
-        "2027-01": {"name": "ربيع", "note": ""},
-        "2027-02": {"name": "ربيع", "note": ""},
-        "2027-03": {"name": "ربيع", "note": ""},
-        "2027-04": {"name": "ربيع / أبو رضوي", "note": ""},
-    }
+import os
+import requests
+import schedule
+import time
+from datetime import date
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+import json
+ 
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8267904285:AAGVOoTasLqP8dGr82euRFSxyw34wuGnSCs")
+CHAT_ID = os.environ.get("CHAT_ID", "90437191")
+SHEET_ID = os.environ.get("SHEET_ID", "1P2SfWJqq8k_8Gk7mRV1fPLq1kXdonOpoxjvP1z7IUHg")
+ 
+CREDENTIALS = {
+  "type": "service_account",
+  "project_id": "direct-outlet-472308-k9",
+  "private_key_id": "0a14b2a82a833bd3534fc66ff984f8cee3f3c91a",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDpcL0Eib/3knYX\n9zkvBJsRzap7/rwYOorZGywmY+9SOQmH4YbuQ9/N8oPNMe3CktHVBAWtjuL/MgHA\n7wqmzE9o+5o1sOC1bMYdmC8VuNcsORS0lzPFeEAgOjInT32tcBLi8swlRASKV8f7\nSm0sBw4NqrqfIkCgJ+D6a003xk2rx1R1YXBLfo0s7UNB3kLj8LQKEqdZfULp7wf2\nW6NqMC4aCfzENxww/QG6mvmRNIUjt8ygYRVLfhMzOhLGmFC6P6czStZCl4E5LHh0\n0O4+tj19xwzaVd9qoL+FGSKvD6A21aC9y4SPahvPrROmk9lbD0LJ/dhR08pY8OC1\nWXSIQ1ftAgMBAAECggEAD9X9NJga+jKo0+JfsjVX8a1n3HvWNbc5oRXAo9ARYEdh\n7U0FfWyu+4ZxSNO+GH4jlursGa8rmKVDTNvKd1s9Iyw3n18i4fEsQBNeqlS84BFK\nkB+rvEB2lS5teuY1FTVuSpAEUkjax/8WyrtsoYPPARVXuKDht8ZMyErMKmBHokNF\nEQ8Rt+uBNp4Q6WGMYcyrcdesO1zrKtku21LFBYsvvQTNXAZTuEzCJDKTVVHXGQ5S\ndKvYNQe6Q4a08dNDCYuKc6aRKfFTDteYTIGy8ZCrC3aT36DUIfmFPcS4SdUnQPlg\nM3ODGstKDcnJDlCv9ciC1JedZ/2i+FBVQ9vqus5lTwKBgQD5dX09nePg7D31J66r\nkv9ar1F3LztpXdC1oMTVPky0dWBBf3OCRj/Jh65RyUqvAE7iBTZqbQk4qaIoeCeS\n6Bf+X0AnCk8hnw18SI7qvDiBbUckmtvOMCCfBaXz4ks883Sgu0eL6/sKIeSLfmaR\nZ2mL/BSVVz3AUXxxvK0bTq+hvwKBgQDvj7kycFfhMTokql0r2R8JMKfKSnTCmFqH\n7udLc6v4FNv1qq7eAozwvgBT1Rb3YPNN9GRS2jzPN7QzBWK/VEQ9Uj3ATU0CPg7L\n3/skiXipPLcvjSmZwdaS6nVvUUa6rz3iVhVhvJpyWE/lncihjREPQQLbX4Zemcqo\nckQv6onZUwKBgQCQV4Q1QAPYZLng/aobCv6IWYNY5FKLQEaAodrizJ6TmIsuuvF6\nQu2rzb93AXMeWZ5LN9rpr9ezGqyCoCu93F/txu2W6WcqPB8Qd+eCOZC0iyesLZLb\n9osZmKoSuTDxvqkQS+01MEFc9omIkYYFwoGXBzBdzVIk0sGgCh1b/KaxfwKBgQCU\nn5MjMsWipVrQMo25TWvO1MvUWdsUe1b3LIV8rxfKwo4wXKM+g1CTbx1e5T3pXdG0\n1GGFcXX2jTWTzcyUrR/k92fuLUcQlBWz8JKr+UnNnSh9LNPZW4PXA/S1ijQaT+xR\nxlxflZYwSI/RAdHeQFmMICY4mYwQltM/LB0XqSe6lwKBgQC17VG7ibrJQgKQG/lk\nvwqmzqkbKe3h5dfNo150xR6ppb9zOuqMW2SqkBkIbIUi6yjSL4knf3wEM1k6hGUt\ndFaSvnb6iLo7c7G4ftBQHjbRp016nBsu8kuK8e/D5gklIno3XVpw3AlhA0dul/Rr\nrnYjEPd0aY20zHCamVPaZYE54w==\n-----END PRIVATE KEY-----\n",
+  "client_email": "gameia-bot@direct-outlet-472308-k9.iam.gserviceaccount.com",
+  "client_id": "100070048815612406823",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/gameia-bot%40direct-outlet-472308-k9.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
 }
-
-GAMEIA_2 = {
-    "data": {
-        1:  {"name": "الأمين", "note": "1-10"},
-        2:  {"name": "ربيع", "note": "الأخير"},
-        3:  {"name": "رضوي", "note": "24"},
-        4:  {"name": "كيان", "note": "23"},
-        5:  {"name": "أبو رضوي", "note": "22"},
-        6:  {"name": "خالد", "note": "21"},
-        7:  {"name": "كيان", "note": "20 - تم التأكيد"},
-        8:  {"name": "الزاوية الحمراء", "note": "19"},
-        9:  {"name": "أبو رضوي", "note": "18"},
-        10: {"name": "أبو رضوي", "note": "17"},
-        11: {"name": "المتحدة", "note": "تم التأكيد"},
-        12: {"name": "الزاوية الحمراء", "note": ""},
-        13: {"name": "الزاوية الحمراء", "note": ""},
-        14: {"name": "ربيع / الزاوية", "note": ""},
-        15: {"name": "ربيع", "note": ""},
-        16: {"name": "ربيع", "note": ""},
-        17: {"name": "ربيع / المتحدة", "note": ""},
-        18: {"name": "ربيع / المتحدة", "note": ""},
-        19: {"name": "ربيع / أبو رضوي", "note": ""},
-        20: {"name": "كيان", "note": ""},
-        21: {"name": "فاضي", "note": ""},
-        22: {"name": "أبو رضوي", "note": ""},
-        23: {"name": "كيان", "note": ""},
-        24: {"name": "أبو رضوي", "note": ""},
-        25: {"name": "ربيع", "note": "10-27"},
-    }
+ 
+month_map = {
+    "شهر 10": "2025-10","شهر 11": "2025-11","شهر 12": "2025-12",
+    "شهر 1-26": "2026-01","شهر 2-26": "2026-02","شهر 3-26": "2026-03",
+    "شهر 4-26": "2026-04","شهر 5-26": "2026-05","شهر 6-26": "2026-06",
+    "شهر 7-26": "2026-07","شهر 8-26": "2026-08","شهر 9-26": "2026-09",
+    "شهر 10-26": "2026-10","شهر 11-26": "2026-11","شهر 12-26": "2026-12",
+    "شهر 27-1": "2027-01","شهر 27-2": "2027-02","شهر 27-3": "2027-03",
+    "شهر 27-4": "2027-04","شهر 27-5": "2027-05","شهر 27-6": "2027-06",
+    "شهر 27-7": "2027-07","شهر 27-8": "2027-08","شهر 27-9": "2027-09",
+    "شهر 27-10": "2027-10",
 }
-
-def get_current_month_key():
-    from datetime import datetime
-    now = datetime.now()
-    return f"{now.year}-{now.month:02d}"
-
-def build_monthly_message():
-    from datetime import datetime
-    now = datetime.now()
-    month_names = {1:"يناير",2:"فبراير",3:"مارس",4:"أبريل",5:"مايو",6:"يونيو",7:"يوليو",8:"أغسطس",9:"سبتمبر",10:"أكتوبر",11:"نوفمبر",12:"ديسمبر"}
-    key = get_current_month_key()
-    msg = f"📅 *تذكير الجمعية - {month_names[now.month]} {now.year}*\n━━━━━━━━━━━━━━━━━━\n\n"
-    g1 = GAMEIA_1["data"].get(key)
-    msg += "🏦 *الجمعية الأولى* (400,000 جنيه)\n"
-    if g1:
-        msg += f"👤 القابض: *{g1['name']}*\n"
-        if g1['note']:
-            msg += f"📌 ملاحظة: {g1['note']}\n"
-    else:
-        msg += "❓ مش محدد القابض لهذا الشهر\n"
-    msg += "\n━━━━━━━━━━━━━━━━━━\n💰 *الجمعية الثانية* - راجع /gameia2\n"
-    return msg
-
-def main_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📅 الشهر ده مين هيقبض؟", callback_data="this_month")],
-        [InlineKeyboardButton("📋 جدول الجمعية الأولى", callback_data="gameia1_full")],
-        [InlineKeyboardButton("📋 جدول الجمعية الثانية", callback_data="gameia2_full")],
-    ])
-
-def back_keyboard():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 رجوع", callback_data="main_menu")]])
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🎯 *بوت الجمعيات - جمعيا*\n\nاختار اللي تعايزه:", reply_markup=main_keyboard(), parse_mode="Markdown")
-
-async def this_month_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(build_monthly_message(), parse_mode="Markdown", reply_markup=back_keyboard())
-
-async def gameia1_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    current_key = get_current_month_key()
-    msg = "🏦 *جدول الجمعية الأولى*\n400,000 جنيه شهرياً\n━━━━━━━━━━━━━━━━━━\n"
-    for k, v in GAMEIA_1["data"].items():
-        m = "◀️ " if k == current_key else ""
-        n = f" ({v['note']})" if v['note'] else ""
-        msg += f"{m}`{k}` — {v['name']}{n}\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
-
-async def gameia2_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = "💰 *جدول الجمعية الثانية*\n625,000 جنيه للسهم\n━━━━━━━━━━━━━━━━━━\n"
-    for num, v in GAMEIA_2["data"].items():
-        n = f" ({v['note']})" if v['note'] else ""
-        msg += f"السهم {num}: *{v['name']}*{n}\n"
-    await update.message.reply_text(msg, parse_mode="Markdown")
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    d = query.data
-
-    if d == "main_menu":
-        await query.edit_message_text("🎯 *بوت الجمعيات - جمعيا*\n\nاختار اللي تعايزه:", reply_markup=main_keyboard(), parse_mode="Markdown")
-
-    elif d == "this_month":
-        await query.edit_message_text(build_monthly_message(), parse_mode="Markdown", reply_markup=back_keyboard())
-
-    elif d == "gameia1_full":
-        current_key = get_current_month_key()
-        msg = "🏦 *جدول الجمعية الأولى*\n400,000 جنيه شهرياً\n━━━━━━━━━━━━━━━━━━\n"
-        for k, v in GAMEIA_1["data"].items():
-            m = "◀️ " if k == current_key else ""
-            n = f" ({v['note']})" if v['note'] else ""
-            msg += f"{m}`{k}` — {v['name']}{n}\n"
-        await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=back_keyboard())
-
-    elif d == "gameia2_full":
-        msg = "💰 *جدول الجمعية الثانية*\n625,000 جنيه للسهم\n━━━━━━━━━━━━━━━━━━\n"
-        for num, v in GAMEIA_2["data"].items():
-            n = f" ({v['note']})" if v['note'] else ""
-            msg += f"السهم {num}: *{v['name']}*{n}\n"
-        await query.edit_message_text(msg, parse_mode="Markdown", reply_markup=back_keyboard())
-
-async def monthly_reminder(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=CHAT_ID, text=build_monthly_message(), parse_mode="Markdown")
-
-def main():
-    logging.basicConfig(level=logging.INFO)
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("thismonth", this_month_command))
-    app.add_handler(CommandHandler("gameia1", gameia1_command))
-    app.add_handler(CommandHandler("gameia2", gameia2_command))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.job_queue.run_monthly(monthly_reminder, when=time(9, 0), day=1)
-    print("✅ البوت شغال!")
-    app.run_polling(drop_pending_updates=True)
-
-if __name__ == "__main__":
-    main()
+ 
+def read_sheet():
+    creds = service_account.Credentials.from_service_account_info(
+        CREDENTIALS,
+        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    )
+    service = build("sheets", "v4", credentials=creds)
+    rows = service.spreadsheets().values().get(
+        spreadsheetId=SHEET_ID,
+        range="الورقة1!A1:L50"
+    ).execute().get("values", [])
+    return rows
+ 
+def parse_schedule(rows):
+    gameia1 = {}
+    gameia2 = {}
+    n = 0
+    for row in rows:
+        name = row[0].strip() if len(row) > 0 and row[0] else ""
+        month = row[1].strip() if len(row) > 1 and row[1] else ""
+        if month in month_map and name:
+            n += 1
+            gameia1[month_map[month]] = (n, name)
+        if len(row) >= 8:
+            c = row[2].strip() if row[2] else ""
+            h = row[7].strip() if row[7] else ""
+            g = row[6].strip() if row[6] else ""
+            if c and h and g:
+                try:
+                    sn = int(c)
+                    mn = int(g)
+                    mk = f"2025-{mn:02d}" if mn >= 10 else f"2026-{mn:02d}"
+                    gameia2[mk] = (sn, h)
+                except:
+                    pass
+    return gameia1, gameia2
+ 
+def send_reminder():
+    today = date.today()
+    day = today.day
+    if day > 10:
+        return
+    mk = today.strftime("%Y-%m")
+    try:
+        rows = read_sheet()
+        g1, g2 = parse_schedule(rows)
+        g1_data = g1.get(mk)
+        g2_data = g2.get(mk)
+        msg = f"تنبيه الجمعية - يوم {day}\n\n"
+        if g1_data:
+            msg += f"الجمعية الاولى\nالسهم {g1_data[0]} - {g1_data[1]}\nالمبلغ: 400 جنيه\n\n"
+        if g2_data:
+            msg += f"الجمعية الثانية\nالسهم {g2_data[0]} - {g2_data[1]}\nالمبلغ: 625 جنيه\n"
+        if not g1_data and not g2_data:
+            msg += "مفيش جمعية الشهر ده"
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={"chat_id": CHAT_ID, "text": msg}
+        )
+        print(f"تم الارسال - يوم {day}")
+    except Exception as e:
+        print(f"خطأ: {e}")
+ 
+print("البوت شغال...")
+send_reminder()
+schedule.every().day.at("10:00").do(send_reminder)
+while True:
+    schedule.run_pending()
+    time.sleep(60)
